@@ -10,7 +10,7 @@ import (
 type CLI struct {
 	Echo EchoCmd `cmd`
 	Cat  CatCmd  `cmd`
-	Tr   TrCmd   `cmd`
+	Tr   TrCmd   `cmd help:"translate, delete or squeeze characters"`
 }
 
 func main() {
