@@ -41,17 +41,14 @@ func TestVaultMarshaling(t *testing.T) {
 
 	for _, tcase := range cases {
 		t.Run(tcase.Name, func(t *testing.T) {
-			// On serialise le Vault du test
 			var encrypted bytes.Buffer
 			if err := tcase.Vault.Marshal(&encrypted, block); err != nil {
 				t.Fatal(err)
 			}
-			// On le déserialise dans un nouveau Vault
 			var actual Vault
 			if err := actual.Unmarshal(&encrypted, block); err != nil {
 				t.Fatal(err)
 			}
-			// Le résultat devrait être egal au Vault initial
 			if !maps.Equal(tcase.Vault.Entries, actual.Entries) {
 				t.Fatalf("vaults are not equal: expected %v, got %v",
 					tcase.Vault, actual)

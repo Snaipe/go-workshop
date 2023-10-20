@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/alecthomas/kong"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/term"
-	"github.com/BurntSushi/toml"
 
 	"example.com/paman/mongostore"
 	"example.com/paman/vault"

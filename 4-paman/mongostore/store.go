@@ -38,7 +38,6 @@ func NewStore(ctx context.Context, user string, block cipher.Block, opts ...*opt
 }
 
 func (s *Store) Close() error {
-	// Attendre 5 minutes maximum que le client se déconnecte.
 	ctx, stop := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer stop()
 
@@ -89,6 +88,4 @@ func (s *Store) Store(v *vault.Vault) error {
 	return err
 }
 
-// NOTE: ceci permet de s'assurer que notre type *Store implémente
-// l'interface vault.Store
 var _ vault.Store = (*Store)(nil)
