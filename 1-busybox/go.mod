@@ -1,4 +1,4 @@
-module example.com/go-busybox
+module example.com/busybox
 
 go 1.21.3
 

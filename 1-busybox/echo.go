@@ -6,14 +6,15 @@ import (
 )
 
 type EchoCmd struct {
-	Args      []string `arg optional`
-	NoNewline bool     `short:"n" help:"disable newlines"`
+	NoNewline bool     `short:"n" name:""`
+	Args      []string `arg:"" passthrough:""`
 }
 
 func (cmd *EchoCmd) Run() error {
-	fmt.Print(strings.Join(cmd.Args, " "))
+	out := strings.Join(cmd.Args, " ")
 	if !cmd.NoNewline {
-		fmt.Println()
+		out += "\n"
 	}
-	return nil
+	_, err := fmt.Print(out)
+	return err
 }
