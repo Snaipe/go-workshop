@@ -9,6 +9,8 @@ func main() {
 		Echo EchoCmd `cmd:""`
 		Cat  CatCmd  `cmd:""`
 		Cp   CpCmd   `cmd:""`
+		Ls   LsCmd   `cmd:""`
+		Du   DuCmd   `cmd:""`
 	}
 	ctx := kong.Parse(&cli)
 	ctx.FatalIfErrorf(ctx.Run())
