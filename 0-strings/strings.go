@@ -1,7 +1,12 @@
 package strings
 
 func IndexByte(s string, c byte) int {
-	panic("unimplemented")
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
 }
 
 func Index(s, substr string) int {
