@@ -11,6 +11,7 @@ func main() {
 		Cp   CpCmd   `cmd:""`
 		Ls   LsCmd   `cmd:""`
 		Du   DuCmd   `cmd:""`
+		Nc   NcCmd   `cmd:""`
 	}
 	ctx := kong.Parse(&cli)
 	ctx.FatalIfErrorf(ctx.Run())

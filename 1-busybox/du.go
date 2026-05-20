@@ -35,7 +35,7 @@ func (c *DuCmd) Run() error {
 			return err
 		}
 
-		depth := strings.Count(path, string(filepath.Separator))+1
+		depth := strings.Count(path, string(filepath.Separator)) + 1
 
 		if len(sizes) < depth {
 			sizes = append(sizes, SizeStack{Path: path})

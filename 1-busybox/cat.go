@@ -10,7 +10,7 @@ type CatCmd struct {
 	Count   bool `short:"n"`
 	Escapes bool `short:"e"`
 
-	Paths   []string `arg:""`
+	Paths []string `arg:""`
 }
 
 func (c *CatCmd) Run() error {
