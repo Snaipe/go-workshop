@@ -11,8 +11,8 @@ import (
 func RunTicker(ctx context.Context, c chan<- time.Time, period time.Duration) {
 	defer close(c)
 
-	timer := time.NewTimer(period)
-	defer timer.Stop()
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
 
 	defer func() {
 		fmt.Println("exiting ticker:", ctx.Err())
@@ -27,13 +27,13 @@ func RunTicker(ctx context.Context, c chan<- time.Time, period time.Duration) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-ticker.C:
 		}
-		timer.Reset(period)
 	}
 }
 
 func main() {
+
 	ctx := context.Background()
 
 	// Annule le context après 5 secondes
