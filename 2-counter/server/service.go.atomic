@@ -1,0 +1,44 @@
+package main
+
+import (
+	"net/http"
+	"sync/atomic"
+
+	"github.com/labstack/echo/v4"
+)
+
+type CounterService struct {
+	value atomic.Int64
+}
+
+func (svc *CounterService) GetCounter(c echo.Context) error {
+	var result struct {
+		Counter int `json:"counter"`
+	}
+
+	result.Counter = int(svc.value.Load())
+
+	return c.JSON(http.StatusOK, result)
+}
+
+func (svc *CounterService) PutCounter(c echo.Context) error {
+	var params struct {
+		Counter int `json:"counter"`
+	}
+	c.Bind(&params) // parse le corps de la requête HTTP dans `params`
+
+	svc.value.Store(int64(params.Counter))
+
+	return c.JSON(http.StatusOK, params)
+}
+
+func (svc *CounterService) PatchCounter(c echo.Context) error {
+	var params struct {
+		Counter int `json:"counter"`
+	}
+	c.Bind(&params) // parse le corps de la requête HTTP dans `params`
+
+	svc.value.Add(int64(params.Counter))
+
+	return c.NoContent(http.StatusOK)
+}
