@@ -1,6 +1,7 @@
 package jq
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,13 +11,47 @@ import (
 
 type Options struct {
 	Compact bool
+	Raw     bool
+	Args    map[string]string
 }
 
-type Option func(*Options)
+type Option func(*Options) error
 
 func Compact() Option {
-	return func(opts *Options) {
+	return func(opts *Options) error {
 		opts.Compact = true
+		return nil
+	}
+}
+
+func Raw() Option {
+	return func(opts *Options) error {
+		opts.Raw = true
+		return nil
+	}
+}
+
+func Arg(key, value string) Option {
+	return func(opts *Options) error {
+		if opts.Args == nil {
+			opts.Args = make(map[string]string)
+		}
+		txt, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		opts.Args[key] = string(txt)
+		return nil
+	}
+}
+
+func ArgJSON(key, value string) Option {
+	return func(opts *Options) error {
+		if opts.Args == nil {
+			opts.Args = make(map[string]string)
+		}
+		opts.Args[key] = value
+		return nil
 	}
 }
 
@@ -24,24 +59,32 @@ func Compact() Option {
 // JSON data.
 type Filter struct {
 	filter string
-	opts   Options
 }
 
-func NewFilter(filter string, opts ...Option) *Filter {
-	f := &Filter{filter: filter}
-	for _, opt := range opts {
-		opt(&f.opts)
-	}
-	return f
+func NewFilter(filter string) *Filter {
+	return &Filter{filter: filter}
 }
 
 // Run executes the filter on the contents of in, and writes the result
 // to out.
-func (f *Filter) Run(in io.Reader, out io.Writer) error {
+func (f *Filter) Run(in io.Reader, out io.Writer, opts ...Option) error {
+
+	var o Options
+	for _, opt := range opts {
+		if err := opt(&o); err != nil {
+			return err
+		}
+	}
 
 	args := []string{f.filter}
-	if f.opts.Compact {
+	if o.Compact {
 		args = append(args, "-c")
+	}
+	if o.Raw {
+		args = append(args, "-r")
+	}
+	for k, v := range o.Args {
+		args = append(args, "--argjson", k, v)
 	}
 
 	var stderr strings.Builder

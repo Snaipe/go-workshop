@@ -44,7 +44,7 @@ func TestFilter(t *testing.T) {
 			if err := json.NewEncoder(&in).Encode(tcase.Input); err != nil {
 				t.Fatal(err)
 			}
-			if err := NewFilter(tcase.Filter, tcase.Options...).Run(&in, &out); err != nil {
+			if err := NewFilter(tcase.Filter).Run(&in, &out, tcase.Options...); err != nil {
 				t.Fatal(err)
 			}
 			if actual := out.String(); tcase.Output != actual {
