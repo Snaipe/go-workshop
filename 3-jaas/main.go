@@ -6,6 +6,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 const usage = `
@@ -18,12 +19,15 @@ func main() {
 	var cli struct {
 		UsageAddress string `default:"localhost:1234"`
 		BindAddress  string `arg optional default:":1234"`
+		MaxProcs     int    `default:"1"`
 	}
 	kong.Parse(&cli)
 
 	e := echo.New()
 
-	svc := Service{}
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+
+	svc := NewService(cli.MaxProcs)
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, fmt.Sprintf(usage, cli.UsageAddress))
 	})

@@ -1,6 +1,7 @@
 package jq
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ type Options struct {
 	Compact bool
 	Raw     bool
 	Args    map[string]string
+	Context context.Context
 }
 
 type Option func(*Options) error
@@ -27,6 +29,13 @@ func Compact() Option {
 func Raw() Option {
 	return func(opts *Options) error {
 		opts.Raw = true
+		return nil
+	}
+}
+
+func Context(ctx context.Context) Option {
+	return func(opts *Options) error {
+		opts.Context = ctx
 		return nil
 	}
 }
@@ -89,13 +98,16 @@ func (f *Filter) Run(in io.Reader, out io.Writer, opts ...Option) error {
 
 	var stderr strings.Builder
 
-	cmd := exec.Command("jq", args...)
+	cmd := exec.CommandContext(o.Context, "jq", args...)
 	cmd.Stdin = in
 	cmd.Stdout = out
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
 	if err != nil {
+		if err := o.Context.Err(); err != nil {
+			return err
+		}
 		var exiterr *exec.ExitError
 		if errors.As(err, &exiterr) {
 			switch exiterr.ExitCode() {
