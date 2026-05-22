@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -13,13 +16,15 @@ import (
 	"example.com/jaas/jq"
 )
 
-type Service struct{
-	pool chan struct{}
+type Service struct {
+	pool  chan struct{}
+	cache Cache[string, []byte]
 }
 
-func NewService(maxProcs int) *Service {
+func NewService(maxProcs int, cache Cache[string, []byte]) *Service {
 	return &Service{
-		pool: make(chan struct{}, maxProcs),
+		pool:  make(chan struct{}, maxProcs),
+		cache: cache,
 	}
 }
 
@@ -36,6 +41,19 @@ func (svc *Service) Post(c echo.Context) error {
 		ArgJSONs []string `form:"argjson"`
 	}
 	c.Bind(&params)
+
+	txt, err := json.Marshal(&params)
+	if err != nil {
+		return err
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(txt))
+
+	result, found := svc.cache.Get(hash)
+	slog.Info("cache lookup", "key", hash, "found", found)
+
+	if found {
+		return c.Blob(http.StatusOK, "application/json", result)
+	}
 
 	opts := []jq.Option{
 		jq.Context(ctx),
@@ -84,6 +102,8 @@ func (svc *Service) Post(c echo.Context) error {
 	if err := filter.Run(in, &out, opts...); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]any{"error": err})
 	}
+
+	svc.cache.Set(hash, out.Bytes())
 
 	return c.Blob(http.StatusOK, "application/json", out.Bytes())
 }

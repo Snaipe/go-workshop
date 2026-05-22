@@ -20,6 +20,7 @@ func main() {
 		UsageAddress string `default:"localhost:1234"`
 		BindAddress  string `arg optional default:":1234"`
 		MaxProcs     int    `default:"1"`
+		CacheSize    int    `default:"128"`
 	}
 	kong.Parse(&cli)
 
@@ -27,7 +28,9 @@ func main() {
 
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 
-	svc := NewService(cli.MaxProcs)
+	cache := NewInMemoryCache[string, []byte](cli.CacheSize)
+
+	svc := NewService(cli.MaxProcs, cache)
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, fmt.Sprintf(usage, cli.UsageAddress))
 	})
