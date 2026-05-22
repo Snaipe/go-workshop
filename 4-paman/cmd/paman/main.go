@@ -5,10 +5,12 @@ import (
 	"crypto/aes"
 	"crypto/pbkdf2"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/alecthomas/kong"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -23,6 +25,23 @@ func fatalf(format string, args ...any) {
 	os.Exit(1)
 }
 
+type StoreConfig struct {
+	Type string `toml:"type"`
+
+	Mongo struct {
+		URI string `toml:"uri"`
+	} `toml:"mongo"`
+
+	File struct {
+		Path string `toml:"path"`
+	} `toml:"file"`
+}
+
+type Config struct {
+	DefaultStore string                 `toml:"default_store"`
+	Stores       map[string]StoreConfig `toml:"stores`
+}
+
 func main() {
 	var cli struct {
 		Get      GetCmd      `cmd help:"retrieve a password"`
@@ -30,8 +49,22 @@ func main() {
 		Generate GenerateCmd `cmd help:"generate a password"`
 
 		Password string `short:"p"`
+		Store    string
 	}
 	ctx := kong.Parse(&cli)
+
+	var config Config
+
+	configFile, err := os.Open(os.ExpandEnv("$HOME/.config/paman.toml"))
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		// not fatal
+	case err != nil:
+		fatalf("opening config: %v", err)
+	}
+	defer configFile.Close()
+
+	toml.NewDecoder(configFile).Decode(&config)
 
 	if cli.Password == "" {
 		fmt.Fprint(os.Stderr, "please enter vault password: ")
@@ -62,33 +95,47 @@ func main() {
 		fatalf("creating aes cipher: %v", err)
 	}
 
-	goctx := context.Background()
-	uri := "mongodb://localhost:27017/"
-
-	client, err := mongo.Connect(goctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		fatalf("connecting to mongodb %q: %v", uri, err)
+	if cli.Store != "" {
+		config.DefaultStore = cli.Store
 	}
 
-	defer func() {
-		// Attendre 5 minutes maximum que le client se déconnecte.
-		ctx, stop := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer stop()
+	storeconfig, ok := config.Stores[config.DefaultStore]
+	if !ok {
+		fatalf("store %q not found", config.DefaultStore)
+	}
 
-		if err := client.Disconnect(ctx); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+	var store vault.Store
+	switch storeconfig.Type {
+	case "mongo":
+		goctx := context.Background()
+		uri := storeconfig.Mongo.URI
+
+		client, err := mongo.Connect(goctx, options.Client().ApplyURI(uri))
+		if err != nil {
+			fatalf("connecting to mongodb %q: %v", uri, err)
 		}
-	}()
 
-	store, err := mongostore.NewStore(client, block, "user@example.com")
-	if err != nil {
-		fatalf("creating mongo store: %v", err)
+		defer func() {
+			// Attendre 5 minutes maximum que le client se déconnecte.
+			ctx, stop := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer stop()
+
+			if err := client.Disconnect(ctx); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}()
+
+		store, err = mongostore.NewStore(client, block, "user@example.com")
+		if err != nil {
+			fatalf("creating mongo store: %v", err)
+		}
+
+	case "file":
+		store = &vault.FileStore{
+			Block: block, // sera défini plus tard
+			Path:  storeconfig.File.Path,
+		}
 	}
-
-	//store := &vault.FileStore{
-	//	Block: block, // sera défini plus tard
-	//	Path:  "vault.dat",
-	//}
 	ctx.BindTo(store, (*vault.Store)(nil))
 
 	if err := ctx.Run(); err != nil {

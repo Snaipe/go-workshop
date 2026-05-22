@@ -3,6 +3,7 @@ module example.com/paman
 go 1.26.2
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/term v0.43.0
