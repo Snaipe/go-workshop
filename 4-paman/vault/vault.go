@@ -1,9 +1,9 @@
 package vault
 
 import (
-	"encoding/json"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/json"
 	"io"
 )
 
@@ -62,5 +62,11 @@ func (v *Vault) Unmarshal(in io.Reader, block cipher.Block) error {
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(ciphertext, ciphertext)
 
-	return json.Unmarshal(ciphertext, &v.Entries)
+	if err := json.Unmarshal(ciphertext, &v.Entries); err != nil {
+		return err
+	}
+	if v.Entries == nil {
+		v.Entries = make(map[string]Entry)
+	}
+	return nil
 }
