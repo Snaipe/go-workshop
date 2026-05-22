@@ -25,7 +25,7 @@ func (store *FileStore) Load(vault *Vault) error {
 }
 
 func (store *FileStore) Store(vault *Vault) error {
-	f, err := os.Create(store.Path+".new")
+	f, err := os.Create(store.Path + ".new")
 	if err != nil {
 		return err
 	}

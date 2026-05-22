@@ -24,6 +24,9 @@ func updatePassword(id, password string, store vault.Store) error {
 		return fmt.Errorf("loading vault: %w", err)
 	}
 
+	if v.Entries == nil {
+		v.Entries = make(map[string]vault.Entry)
+	}
 	entry := v.Entries[id]
 	entry.Password = password
 	v.Entries[id] = entry

@@ -1,15 +1,20 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"crypto/aes"
 	"crypto/pbkdf2"
 	"crypto/sha256"
-	"crypto/aes"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/alecthomas/kong"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/term"
 
+	"example.com/paman/mongostore"
 	"example.com/paman/vault"
 )
 
@@ -23,14 +28,19 @@ func main() {
 		Get      GetCmd      `cmd help:"retrieve a password"`
 		Set      SetCmd      `cmd help:"assign a password"`
 		Generate GenerateCmd `cmd help:"generate a password"`
+
+		Password string `short:"p"`
 	}
 	ctx := kong.Parse(&cli)
 
-	fmt.Fprint(os.Stderr, "please enter vault password: ")
-	password, err := term.ReadPassword(0)
-	fmt.Fprint(os.Stderr, "\n")
-	if err != nil {
-		fatalf("reading password: %v", err)
+	if cli.Password == "" {
+		fmt.Fprint(os.Stderr, "please enter vault password: ")
+		password, err := term.ReadPassword(0)
+		fmt.Fprint(os.Stderr, "\n")
+		if err != nil {
+			fatalf("reading password: %v", err)
+		}
+		cli.Password = string(password)
 	}
 
 	// NOTE: dans la vraie vie, salt devrait être généré aléatoirement pour
@@ -42,7 +52,7 @@ func main() {
 	// minimum de 600 000 itérations pour HMAC_SHA_256.
 	const rounds = 600_000
 
-	key, err := pbkdf2.Key(sha256.New, string(password), salt, rounds, 32)
+	key, err := pbkdf2.Key(sha256.New, cli.Password, salt, rounds, 32)
 	if err != nil {
 		fatalf("running key-derivation function: %v", err)
 	}
@@ -52,10 +62,33 @@ func main() {
 		fatalf("creating aes cipher: %v", err)
 	}
 
-	store := &vault.FileStore{
-		Block: block, // sera défini plus tard
-		Path:  "vault.dat",
+	goctx := context.Background()
+	uri := "mongodb://localhost:27017/"
+
+	client, err := mongo.Connect(goctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		fatalf("connecting to mongodb %q: %v", uri, err)
 	}
+
+	defer func() {
+		// Attendre 5 minutes maximum que le client se déconnecte.
+		ctx, stop := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer stop()
+
+		if err := client.Disconnect(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}()
+
+	store, err := mongostore.NewStore(client, block, "user@example.com")
+	if err != nil {
+		fatalf("creating mongo store: %v", err)
+	}
+
+	//store := &vault.FileStore{
+	//	Block: block, // sera défini plus tard
+	//	Path:  "vault.dat",
+	//}
 	ctx.BindTo(store, (*vault.Store)(nil))
 
 	if err := ctx.Run(); err != nil {
